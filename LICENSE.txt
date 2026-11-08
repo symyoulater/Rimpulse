@@ -1,0 +1,15 @@
+Rimpulse
+Copyright (c) 2026 Sarah (symyoulater). All rights reserved.
+
+Part of the Riminal suite.
+
+This software and its source code are proprietary. No part of it may be
+copied, modified, distributed, sublicensed or used to create derivative
+works without the prior written permission of the copyright holder.
+
+Beta testers are granted permission to install and run released builds for
+personal testing only.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED. Force feedback wheelbases can produce strong forces. The copyright
+holder is not liable for any injury, damage or loss arising from its use.

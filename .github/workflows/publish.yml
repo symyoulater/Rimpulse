@@ -1,0 +1,65 @@
+name: Publish release
+
+# The installer arrives on a temporary "incoming" branch (pushed by tools/publish-release.sh in the
+# private repo). This turns it into a release pointing at the documents on main, then deletes the branch.
+on:
+  push:
+    branches: [incoming]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read version
+        id: ver
+        run: |
+          v=$(tr -d '[:space:]' < VERSION)
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          # Four numbers (0.15.0.2) = a beta: "0.15.0 beta 2", published as a pre-release.
+          IFS=. read -r a b c d <<< "$v"
+          if [ -n "$d" ]; then
+            echo "beta=true" >> "$GITHUB_OUTPUT"; echo "label=$a.$b.$c beta $d" >> "$GITHUB_OUTPUT"
+          else
+            echo "beta=false" >> "$GITHUB_OUTPUT"; echo "label=$v" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Main's latest commit
+        id: main
+        run: |
+          git fetch -q origin main
+          echo "sha=$(git rev-parse origin/main)" >> "$GITHUB_OUTPUT"
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ steps.main.outputs.sha }}
+          name: Rimpulse ${{ steps.ver.outputs.label }}
+          files: Rimpulse-Setup-*.exe
+          prerelease: ${{ steps.ver.outputs.beta }}
+          make_latest: ${{ steps.ver.outputs.beta == 'true' && 'false' || 'true' }}
+          body: |
+            ${{ steps.ver.outputs.beta == 'true' && '**This is a beta for testers.** It may have problems. To get betas automatically, tick **Get beta versions** under the version number in the app. Please report how it goes in rimpulse-feedback on Discord.' || '' }}
+
+            Download **Rimpulse-Setup-${{ steps.ver.outputs.version }}.exe** below and run it. If Windows says "Windows protected your PC", click **More info**, then **Run anyway**.
+
+            Already have Rimpulse? It offers new versions itself, under the version number in the bottom left.
+
+            Questions, help or bugs? Join the [Riminal Discord](https://discord.gg/XkukAhckz2): rimpulse-help and rimpulse-feedback.
+      # Every release's "Source code" download is just these documents, never program code,
+      # and only main is kept as a branch.
+      - name: Point all releases at the documents
+        run: |
+          git fetch -q --tags origin
+          main=${{ steps.main.outputs.sha }}
+          for t in $(git tag -l); do
+            [ "$(git rev-parse "$t^{commit}")" = "$main" ] || git push -q -f origin "$main:refs/tags/$t"
+          done
+          for b in $(git ls-remote --heads origin | sed 's#.*refs/heads/##'); do
+            case "$b" in main|incoming) ;; *) git push -q origin --delete "$b" ;; esac
+          done
+      - name: Remove the incoming branch
+        if: always()
+        run: git push origin --delete incoming
